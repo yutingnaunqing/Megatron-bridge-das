@@ -1,4 +1,4 @@
-"""Eight-DCU DDP smoke test for the upstream Qwen4Exp text model.
+"""Multi-DCU DDP smoke test for the upstream Qwen4Exp text model.
 
 使用示例（在项目根目录执行）：
     export PYTHONPATH=/public/home/yugeng/work/transformers_qwen38/src:${PYTHONPATH}
@@ -26,8 +26,8 @@ def parse_args():
     parser.add_argument("--layers", type=int, default=8, help="Must be a multiple of four to retain the 3-GDN/1-QSA pattern.")
     parser.add_argument("--dtype", choices=["float32", "bfloat16"], default="bfloat16")
     parser.add_argument("--attention", choices=["eager", "sdpa"], default="eager")
-    parser.add_argument("--experts", choices=["eager", "batched_mm", "grouped_mm"], default="batched_mm")
-    parser.add_argument("--gdn", choices=["fla", "torch_reference"], default="torch_reference")
+    parser.add_argument("--experts", choices=["eager", "batched_mm", "grouped_mm"], default="grouped_mm")
+    parser.add_argument("--gdn", choices=["fla", "torch_reference"], default="fla")
     parser.add_argument("--seq-len", type=int, default=64)
     parser.add_argument("--local-batch-size", type=int, default=1)
     parser.add_argument("--steps", type=int, default=2)
@@ -119,8 +119,8 @@ def main():
         from transformers.models.qwen4_exp.configuration_qwen4_exp import Qwen4ExpTextConfig
         import transformers.models.qwen4_exp.modeling_qwen4_exp as qwen4_exp_modeling
 
-        if world_size != 8:
-            raise RuntimeError(f"This script is an eight-card test; torchrun reported WORLD_SIZE={world_size}")
+        if world_size < 2:
+            raise RuntimeError(f"DDP requires at least two ranks; torchrun reported WORLD_SIZE={world_size}")
         if not torch.cuda.is_available():
             raise RuntimeError("DCU unavailable to PyTorch")
 
@@ -255,7 +255,7 @@ def main():
                 "max_peak_allocated_gib_per_rank": peak_memory.item() / 2**30,
             }
             (args.output / "result.json").write_text(json.dumps(report, indent=2))
-            print("PASS: 8-rank DDP forward/loss/backward/all-reduce/update", flush=True)
+            print(f"PASS: {world_size}-rank DDP forward/loss/backward/all-reduce/update", flush=True)
         dist.barrier()
     except Exception:
         failure = traceback.format_exc()
