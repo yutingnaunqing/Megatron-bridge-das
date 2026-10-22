@@ -42,8 +42,8 @@ UPSTREAM_REPO = REPO_ROOT / "3rdparty/Megatron-Bridge"
 UPSTREAM_RECIPES_INIT = "src/megatron/bridge/recipes/__init__.py"
 
 # Every HCU family the runner must be able to resolve by name.
-HCU_FAMILIES = ("deepseek", "qwen35_vl")
-EXPECTED_FAMILY_PREFIXES = ("deepseek_v4_", "qwen35_vl_")
+HCU_FAMILIES = ("deepseek", "qwen35_vl", "qwen38", "qwen38_vl")
+EXPECTED_FAMILY_PREFIXES = ("deepseek_v4_", "qwen35_vl_", "qwen38_", "qwen38_vl_")
 
 _STAR_IMPORT = re.compile(r"^from ([\w.]+) import \*$", re.MULTILINE)
 
@@ -55,7 +55,8 @@ def _star_imports(source: str) -> set:
 def _pristine_upstream_init() -> str:
     """The upstream recipe index as committed, unaffected by env.sh's copy."""
     result = subprocess.run(
-        ["git", "-C", str(UPSTREAM_REPO), "show", f"HEAD:{UPSTREAM_RECIPES_INIT}"],
+        ["git", "-c", f"safe.directory={UPSTREAM_REPO}", "-C", str(UPSTREAM_REPO),
+         "show", f"HEAD:{UPSTREAM_RECIPES_INIT}"],
         capture_output=True,
         text=True,
     )
@@ -90,5 +91,5 @@ def test_published_names_follow_the_runner_conventions():
         assert module.__all__, family
         for recipe_name in module.__all__:
             assert recipe_name.startswith(EXPECTED_FAMILY_PREFIXES), recipe_name
-            assert "_pretrain_" in recipe_name, recipe_name
+            assert any(f"_{mode}_" in recipe_name for mode in ("pretrain", "sft")), recipe_name
             assert recipe_name.endswith("_config"), recipe_name

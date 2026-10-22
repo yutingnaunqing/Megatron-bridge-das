@@ -83,3 +83,4 @@ from hcu_megatron.bridge.recipes.minimax import *
 from hcu_megatron.bridge.recipes.qwen35 import *
 from hcu_megatron.bridge.recipes.qwen35_vl import *
 from hcu_megatron.bridge.recipes.qwen38 import *
+from hcu_megatron.bridge.recipes.qwen38_vl import *

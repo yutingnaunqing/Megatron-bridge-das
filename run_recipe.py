@@ -519,6 +519,9 @@ def main(argv: list[str] | None = None) -> None:
     recipe = sync_model_dataset_sequence_length(recipe)
 
     step_func_name = args.step_func or recipe_step(recipe_name)
+    # HCU Qwen3.8-VL recipes share the Qwen VL batch and forward contract.
+    if args.step_func is None and recipe_name.startswith("qwen38_vl_"):
+        step_func_name = "qwen3_vl_step"
     forward_step = load_forward_step(step_func_name, mode=step_mode)
     run_config(
         config=recipe,

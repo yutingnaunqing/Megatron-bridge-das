@@ -20,3 +20,4 @@ Megatron-Bridge-das：基于HCU生态的强化学习训练套件，旨在为HCU�
 |Qwen                  | Qwen3.5-4B            | ✓          |       |[pretrain](docs/models/qwen/qwen35-vl-bw1000.md)|
 |Qwen                  | Qwen3.5-9B            | ✓          |       |[pretrain](docs/models/qwen/qwen35-vl-bw1000.md)|
 |Qwen                  | Qwen3.8-2.4T-A95B     | ✓          |       |[pretrain](docs/models/qwen/qwen3.8-pretrain.md)|
+|Qwen                  | Qwen3.8-27B           | ✓          |       |[pretrain](docs/models/qwen/qwen38-vl-bw1000.md)|
