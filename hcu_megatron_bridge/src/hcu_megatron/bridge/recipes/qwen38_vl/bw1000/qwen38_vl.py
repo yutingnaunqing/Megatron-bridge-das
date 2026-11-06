@@ -77,12 +77,12 @@ def _qwen38_vl_27b_pretrain_config(
     cfg.model.moe_permute_fusion = False
     cfg.model.attention_backend = AttnBackend.auto
     cfg.model.cross_entropy_loss_fusion = False
-    cfg.model.recompute_granularity = "full"
-    cfg.model.recompute_method = "uniform"
-    cfg.model.recompute_num_layers = 1
+    cfg.model.recompute_granularity = None #"full"
+    cfg.model.recompute_method = None #"uniform"
+    cfg.model.recompute_num_layers = None #1
     cfg.rng.te_rng_tracker = False
     cfg.comm_overlap = CommOverlapConfig(
-        tp_comm_overlap=False, overlap_grad_reduce=False, overlap_param_gather=False
+        tp_comm_overlap=True, overlap_grad_reduce=False, overlap_param_gather=False
     )
 
     cfg.train.train_iters = int(os.environ.get("TRAIN_ITERS", "50"))
@@ -192,8 +192,23 @@ def qwen38_vl_27b_pretrain_8gpu_smoke_bw1000_bf16_config() -> ConfigContainer:
     return cfg
 
 
+def qwen38_vl_27b_pretrain_8gpu_bw1000_bf16_config() -> ConfigContainer:
+    """Screen performance on 8 GPUs with 16 language layers and real Energon data."""
+    cfg = _qwen38_vl_27b_pretrain_config(dataset_backend="energon")
+    # Four complete (3 GDN + 1 attention) blocks; keep all model widths and
+    # the full vision encoder/projection. TP4/PP2 places eight layers per stage.
+    cfg.model.num_layers = 16
+    cfg.model.hf_text_config.num_hidden_layers = 16
+    cfg.model.hf_text_config.layer_types = cfg.model.hf_text_config.layer_types[:16]
+    if isinstance(cfg.model.linear_attention_freq, list):
+        cfg.model.linear_attention_freq = cfg.model.linear_attention_freq[:16]
+    cfg.train.train_iters = int(os.environ.get("TRAIN_ITERS", "15"))
+    return cfg
+
+
 __all__ = [
     "qwen38_vl_27b_pretrain_bw1000_bf16_config",
     "qwen38_vl_27b_pretrain_bw1000_bf16_mock_config",
     "qwen38_vl_27b_pretrain_8gpu_smoke_bw1000_bf16_config",
+    "qwen38_vl_27b_pretrain_8gpu_bw1000_bf16_config",
 ]

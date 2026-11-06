@@ -8,6 +8,8 @@ MEGATRON_PATH=$( dirname "$( dirname "${CURRENT_DIR}" )" )
 DTK_ENV=$(realpath -m "${DTK_ENV:-/opt/dtk/env.sh}")
 source "${DTK_ENV}"
 source "${MEGATRON_PATH}/env/env.sh"
+# Explicit local-launch override for CPU optimizer offload benchmarks.
+export OMP_NUM_THREADS=${TRAIN_OMP_NUM_THREADS:-${OMP_NUM_THREADS:-1}}
 export HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}
 export TRANSFORMERS_OFFLINE=${TRANSFORMERS_OFFLINE:-1}
 export GPU_MAX_HW_QUEUES=${GPU_MAX_HW_QUEUES:-4}
@@ -31,6 +33,7 @@ if (( $# < 2 )); then
     echo "  qwen38_vl_27b_pretrain_bw1000_bf16_config"
     echo "  qwen38_vl_27b_pretrain_bw1000_bf16_mock_config"
     echo "  qwen38_vl_27b_pretrain_8gpu_smoke_bw1000_bf16_config"
+    echo "  qwen38_vl_27b_pretrain_8gpu_bw1000_bf16_config"
     exit 1
 fi
 RECIPE=$1
@@ -97,7 +100,7 @@ fi
 
 # ===================================== Train Config =====================================
 TRAIN_ITERS=${TRAIN_ITERS:-5}
-GLOBAL_BATCH_SIZE=${GLOBAL_BATCH_SIZE:-8}
+GLOBAL_BATCH_SIZE=${GLOBAL_BATCH_SIZE:-32}
 # EnergonDatasetConfig.micro_batch_size must equal train.micro_batch_size, and
 # the recipe sets both from this one variable; passing -mb would move only one.
 MICRO_BATCH_SIZE=${MICRO_BATCH_SIZE:-1}
@@ -170,6 +173,42 @@ CKPT_AND_LOGGING_CONFIG=(
     logger.save_config_filepath=${CONFIG_DUMP}
 )
 
+# ===================================== Torch Profiler =====================================
+# Example: PROFILE=true TRAIN_ITERS=30 PROFILE_STEP_START=10 PROFILE_STEP_END=13 \
+#   PROFILE_RANKS='[0,4,8,12]' bash train_qwen38_vl_pretrain.sh <RECIPE> train <HOSTFILE> 2
+# Uses Bridge's existing profiler; traces go to SAVE_DIR/torch_profile/rank-N.json.gz.
+# END is exclusive in the profiler schedule: active steps = END - START.
+# Start/end count steps in this invocation (use a fresh run for these examples).
+PROFILE=${PROFILE:-false}
+PROFILE_STEP_START=${PROFILE_STEP_START:-10}
+PROFILE_STEP_END=${PROFILE_STEP_END:-11}
+PROFILE_RANKS=${PROFILE_RANKS:-'[0]'}
+PROFILE_RECORD_SHAPES=${PROFILE_RECORD_SHAPES:-true}
+PROFILE_WITH_STACK=${PROFILE_WITH_STACK:-true}
+
+for name in PROFILE PROFILE_RECORD_SHAPES PROFILE_WITH_STACK; do
+    case "${!name,,}" in
+        1|true) printf -v "${name}" '%s' true ;;
+        0|false) printf -v "${name}" '%s' false ;;
+        *) echo "ERROR: ${name} must be true/false or 1/0." >&2; exit 1 ;;
+    esac
+done
+
+PROFILING_CONFIG=()
+if [[ ${PROFILE} == true ]]; then
+    # These become explicit runner arguments, so mpirun forwards them to every
+    # node through RECIPE_QUOTED without needing additional exported variables.
+    PROFILING_CONFIG=(
+        profiling.use_pytorch_profiler=true
+        profiling.use_nsys_profiler=false
+        profiling.profile_step_start=${PROFILE_STEP_START}
+        profiling.profile_step_end=${PROFILE_STEP_END}
+        "profiling.profile_ranks=${PROFILE_RANKS}"
+        profiling.pytorch_profiler_collect_shapes=${PROFILE_RECORD_SHAPES}
+        profiling.pytorch_profiler_collect_callstack=${PROFILE_WITH_STACK}
+    )
+fi
+
 # ===================================== Summary =====================================
 mkdir -p "${SAVE_DIR}/train_logs"
 echo "======================================"
@@ -190,6 +229,11 @@ else
     echo "Dataset:     mock (${MOCK_NUM_BASE_EXAMPLES} synthetic examples)"
 fi
 echo "Save dir:    ${SAVE_DIR}"
+if [[ ${PROFILE} == true ]]; then
+    echo "Torch prof:  enabled, start=${PROFILE_STEP_START}, end=${PROFILE_STEP_END}, ranks=${PROFILE_RANKS}"
+    echo "Prof detail: shapes=${PROFILE_RECORD_SHAPES}, stack=${PROFILE_WITH_STACK}"
+    echo "Prof output: ${SAVE_DIR}/torch_profile/rank-N.json.gz"
+fi
 echo "Master:      ${MASTER_ADDR}:${MASTER_PORT}"
 echo "======================================"
 
@@ -211,6 +255,7 @@ RECIPE_ARGS+=(
     "${PARALLEL_CONFIG[@]}"
     "${MODEL_CONFIG[@]}"
     "${CKPT_AND_LOGGING_CONFIG[@]}"
+    "${PROFILING_CONFIG[@]}"
 )
 # Trailing KEY=VALUE arguments override the defaults above.
 RECIPE_ARGS+=("${EXTRA_ARGS[@]}")
@@ -261,7 +306,11 @@ case "${MODE}" in
             # The recipe reads its model, data, batch, and mock knobs from the
             # environment, so every one of them has to cross to the other nodes.
             ENV_ARGS=()
-            for name in PATH LD_LIBRARY_PATH LIBRARY_PATH ROCM_PATH HYHAL_PATH HF_HOME HF_HUB_CACHE TRITON_CACHE_DIR TRITON_PRINT_AUTOTUNING IB_TYPE NCCL_IB_HCA NCCL_SOCKET_IFNAME NCCL_IB_GID_INDEX NCCL_IB_DISABLE NCCL_TOPO_FILE RCCL_NET_PLANE SHCA_SHUT_UP_FWB RCCL_P2P_XHCL_CHANNEL_NUM HIP_VISIBLE_DEVICES ROCR_VISIBLE_DEVICES; do
+            # Optional tuning/debug settings must also reach the remote torchrun.
+            for name in MIOPEN_FIND_MODE MIOPEN_FIND_ENFORCE MIOPEN_USER_DB_PATH MIOPEN_CUSTOM_CACHE_DIR TORCH_LOGS TORCH_COMPILE_DEBUG TORCHINDUCTOR_CACHE_DIR; do
+                [[ ! -v ${name} ]] || ENV_ARGS+=(-x "${name}")
+            done
+            for name in PATH LD_LIBRARY_PATH LIBRARY_PATH ROCM_PATH HYHAL_PATH HOME TMPDIR XDG_CACHE_HOME TORCH_HOME TORCH_EXTENSIONS_DIR PYTHONDONTWRITEBYTECODE HF_HOME HF_HUB_CACHE TRITON_CACHE_DIR TRITON_PRINT_AUTOTUNING IB_TYPE NCCL_IB_HCA NCCL_SOCKET_IFNAME NCCL_IB_GID_INDEX NCCL_IB_DISABLE NCCL_TOPO_FILE RCCL_NET_PLANE SHCA_SHUT_UP_FWB RCCL_P2P_XHCL_CHANNEL_NUM HIP_VISIBLE_DEVICES ROCR_VISIBLE_DEVICES; do
                 [[ ! -v ${name} ]] || ENV_ARGS+=(-x "${name}")
             done
             mpirun -np ${NNODES} --hostfile ${HOSTFILE_SLOTS} \
