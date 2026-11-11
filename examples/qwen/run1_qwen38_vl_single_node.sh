@@ -16,8 +16,10 @@ if (( $# > 0 )); then shift; fi
 
 # ===================================== Model and Data =====================================
 export LOCAL_HF_PATH=${LOCAL_HF_PATH:-/public/home/yugeng/work/models/Qwen3.8-27B}
-export DATA_PATH=${DATA_PATH:-/public/home/yugeng/work/datasets/star-source/star-energon}
-export SAVE_DIR=${SAVE_DIR:-/public/home/yugeng/work/checkpoints/star-single-node-16layers-$(date +%Y%m%d_%H%M%S)}
+# export DATA_PATH=${DATA_PATH:-/public/home/yugeng/work/datasets/star-energon}
+# export SAVE_DIR=${SAVE_DIR:-/public/home/yugeng/work/checkpoints/star-single-node-16layers-$(date +%Y%m%d_%H%M%S)}
+export DATA_PATH=${DATA_PATH:-/public/home/yugeng/work/datasets/mantis-birds-energon-v1}
+export SAVE_DIR=${SAVE_DIR:-/public/home/yugeng/work/checkpoints/mantis-birds-one-node-16layers-$(date +%Y%m%d_%H%M%S)}
 
 # ===================================== Train Config =====================================
 export SEQ_LENGTH=${SEQ_LENGTH:-4096}
@@ -32,12 +34,9 @@ export TRAIN_OMP_NUM_THREADS=${TRAIN_OMP_NUM_THREADS:-4}
 CPU_OPTIMIZER_TRANSFER_OVERLAP=${CPU_OPTIMIZER_TRANSFER_OVERLAP:-false}
 
 # ===================================== Parallel Config =====================================
-export GPUS=${GPUS:-8} TP=${TP:-4} PP=${PP:-2} CP=${CP:-1}
+export GPUS=${GPUS:-8} TP=${TP:-2} PP=${PP:-4} CP=${CP:-1}
 export MASTER_ADDR=127.0.0.1
 export MASTER_PORT=${MASTER_PORT:-29745}
-TP_COMM_OVERLAP=${TP_COMM_OVERLAP:-false}
-OVERLAP_GRAD_REDUCE=${OVERLAP_GRAD_REDUCE:-false}
-OVERLAP_PARAM_GATHER=${OVERLAP_PARAM_GATHER:-false}
 export MIOPEN_FIND_MODE=3
 
 # ===================================== Recompute Config =====================================
@@ -52,11 +51,11 @@ esac
 
 # ===================================== Torch Profiler =====================================
 export PROFILE=${PROFILE:-false}
-export PROFILE_STEP_START=${PROFILE_STEP_START:-10}
-export PROFILE_STEP_END=${PROFILE_STEP_END:-11}
+export PROFILE_STEP_START=${PROFILE_STEP_START:-5}
+export PROFILE_STEP_END=${PROFILE_STEP_END:-6}
 export PROFILE_RANKS=${PROFILE_RANKS:-'[0,4]'}
 export PROFILE_RECORD_SHAPES=${PROFILE_RECORD_SHAPES:-false}
-export PROFILE_WITH_STACK=${PROFILE_WITH_STACK:-false}
+export PROFILE_WITH_STACK=${PROFILE_WITH_STACK:-true}
 
 # ===================================== Checkpoint and Entry =====================================
 # Fresh initialization for performance testing, with no checkpoint I/O.
@@ -70,10 +69,10 @@ exec bash "${CURRENT_DIR}/train_qwen38_vl_pretrain.sh" \
     qwen38_vl_27b_pretrain_8gpu_bw1000_bf16_config "${MODE}" "" 1 \
     "${RECOMPUTE_ARGS[@]}" \
     model.cpu_offloading=false \
-    model.freeze_vision_model=false \
-    model.freeze_vision_projection=false \
-    model.bias_activation_fusion=true \
-    comm_overlap.tp_comm_overlap=true \
+    model.freeze_vision_model=true \
+    model.freeze_vision_projection=true \
+    model.bias_activation_fusion=false \
+    comm_overlap.tp_comm_overlap=false \
     comm_overlap.overlap_grad_reduce=false \
     comm_overlap.overlap_param_gather=false \
     optimizer.overlap_cpu_optimizer_d2h_h2d=false \

@@ -74,6 +74,34 @@ python 3rdparty/Megatron-Bridge/tutorials/data/energon/prepare_example_data.py \
 
 该脚本生成4条训练样本和2条验证样本，内容为纯色图像及颜色问答，仅用于验证数据加载和训练链路。
 
+### 2.3 真实数据集 Mantis-Instruct
+
+[TIGER-Lab/Mantis-Instruct](https://huggingface.co/datasets/TIGER-Lab/Mantis-Instruct) 提供图像和多轮对话。仓库已有匹配转换脚本，不需要从头编写 WebDataset writer。可以先下载一个子集，避免获取整个数据仓库。
+
+例如下载 [chartqa 子集](https://huggingface.co/datasets/TIGER-Lab/Mantis-Instruct/tree/main/chartqa) 的训练标注和图片包（也可以从魔搭设区下载）：
+
+```bash
+HF_HUB_OFFLINE=0 TRANSFORMERS_OFFLINE=0 \
+    hf download TIGER-Lab/Mantis-Instruct --repo-type dataset \
+    --include 'chartqa/train-*.parquet' 'chartqa/train_images.zip' \
+    --local-dir /public/home/yugeng/work/datasets/Mantis-Instruct
+```
+
+`hf` 命令随 `huggingface_hub` 包提供，使用方式见 [Hugging Face CLI 文档](https://huggingface.co/docs/huggingface_hub/guides/cli)。在能联网的机器下载后，也可把完整子集目录复制到训练集群。下载命令临时关闭离线模式，不影响训练脚本默认离线加载模型。
+
+转换与索引（官方转换代码报错时，可直接使用/examples/qwen/prepare_mantis_energon.py进行转换）：
+
+```bash
+python 3rdparty/Megatron-Bridge/examples/models/qwen/qwen3_vl/prepare_mantis_energon.py \
+    --source-dir /public/home/yugeng/work/datasets/Mantis-Instruct \
+    --output-dir /public/home/yugeng/work/datasets/mantis-energon \
+    --max-samples-per-tar 1000 \
+    --validation-fraction 0.01 \
+    --num-workers 2
+```
+
+转换器要求源目录下存在子集目录，子集中包含 `train-*.parquet` 和 `train_images.zip`；自动解压图片，生成 `.jpgs` 和 ChatML `.json` 成员，再创建 Energon 元数据。它会跳过图片缺失或 `<image>` 占位符数量与图片数量不一致的行，需检查日志中的写入数量确实大于零。
+
 ## 3、模型准备
 
 ```shell
@@ -81,7 +109,7 @@ pip install modelscope
 
 cd /workspace
 
-modelscope download --model Qwen/Qwen3.8-27B --local_dir ./models/Qwen3.8-27B
+modelscope download --model Qwen/Qwen3.8-27B --exclude "*.safetensors" --local_dir ./models/Qwen3.8-27B
 ```
 
 或者[点击链接](https://modelscope.cn/models/Qwen/Qwen3.8-27B/files)，手动下载模型文件，上传至`/workspace/models/Qwen3.8-27B`路径下。
