@@ -79,6 +79,7 @@ from typing import TYPE_CHECKING, Literal
 
 import torch
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -130,7 +131,9 @@ if TYPE_CHECKING:
     from megatron.bridge.training.config import ConfigContainer
 
 if torch.version.hip is not None:
-    from hcu_megatron_bridge import megatron_adaptor
+    from hcu_megatron.bridge.recipes import register_hcu_recipes
+
+    register_hcu_recipes()
 
 
 PublicMode = Literal["pretrain", "sft", "lora", "dora"]
@@ -534,4 +537,16 @@ def main(argv: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        # Only imported by HCU Qwen recipes. No upstream training loop patch.
+        _vision_adapter = sys.modules.get("hcu_megatron.bridge.models.qwen38_vl.adapter")
+        if _vision_adapter is not None:
+            _training_failed = sys.exc_info()[0] is not None
+            try:
+                _vision_adapter.cleanup_vision_graphs()
+            except RuntimeError:
+                if not _training_failed:
+                    raise
+                logging.getLogger(__name__).exception("HCU vision Graph cleanup failed")

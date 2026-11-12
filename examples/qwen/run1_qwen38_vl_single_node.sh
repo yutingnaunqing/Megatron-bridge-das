@@ -49,6 +49,11 @@ case ${RECOMPUTE} in
 esac
 
 
+# ===================================== Vision Backends =====================================
+# Full-depth BF16 parity checked. Patch embedding stays on the original Conv3d.
+export VISION_ROPE_BACKEND=${VISION_ROPE_BACKEND:-flash}
+export VISION_METADATA_BACKEND=${VISION_METADATA_BACKEND:-prepared}
+
 # ===================================== Torch Profiler =====================================
 export PROFILE=${PROFILE:-false}
 export PROFILE_STEP_START=${PROFILE_STEP_START:-5}

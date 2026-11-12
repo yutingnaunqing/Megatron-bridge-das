@@ -1,4 +1,4 @@
-# Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2026, NVIDIA CORPORATION.  All rights reserved.
 # Copyright (c) 2026 Hygon Information Technology Co., Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,74 +13,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Megatron Bridge Recipe Configurations
+"""HCU recipe registration without copying files into the upstream package."""
 
-This module exposes all recipe configurations from all model families.
+import importlib
+import logging
 
-``env/env.sh`` copies this file over ``megatron/bridge/recipes/__init__.py``
-before every launch, which is how the HCU families below become visible to
-``find_library_recipe``: it resolves ``--recipe`` with ``getattr`` on the live
-``megatron.bridge.recipes`` module.  So this file must stay a superset of the
-upstream one -- the upstream star-imports first, then the HCU families.
-"""
 
-from megatron.bridge.recipes.deepseek import *
-from megatron.bridge.recipes.deepseek.h100 import *
-from megatron.bridge.recipes.exaone import *
-from megatron.bridge.recipes.exaone.h100 import *
-from megatron.bridge.recipes.flux import *
-from megatron.bridge.recipes.flux.h100 import *
-from megatron.bridge.recipes.gemma import *
-from megatron.bridge.recipes.gemma.h100 import *
-from megatron.bridge.recipes.gemma3_vl import *
-from megatron.bridge.recipes.gemma3_vl.h100 import *
-from megatron.bridge.recipes.gemma4_vl import *
-from megatron.bridge.recipes.gemma4_vl.h100 import *
-from megatron.bridge.recipes.glm import *
-from megatron.bridge.recipes.glm.h100 import *
-from megatron.bridge.recipes.glm_vl import *
-from megatron.bridge.recipes.glm_vl.h100 import *
-from megatron.bridge.recipes.gpt import *
-from megatron.bridge.recipes.gpt.h100 import *
-from megatron.bridge.recipes.gpt_oss import *
-from megatron.bridge.recipes.gpt_oss.h100 import *
-from megatron.bridge.recipes.kimi import *
-from megatron.bridge.recipes.kimi.h100 import *
-from megatron.bridge.recipes.kimi_vl import *
-from megatron.bridge.recipes.kimi_vl.h100 import *
-from megatron.bridge.recipes.llama import *
-from megatron.bridge.recipes.llama.h100 import *
-from megatron.bridge.recipes.minimax import *
-from megatron.bridge.recipes.minimax.h100 import *
-from megatron.bridge.recipes.ministral3 import *
-from megatron.bridge.recipes.ministral3.h100 import *
-from megatron.bridge.recipes.moonlight import *
-from megatron.bridge.recipes.moonlight.h100 import *
-from megatron.bridge.recipes.nemotron_omni import *
-from megatron.bridge.recipes.nemotron_omni.h100 import *
-from megatron.bridge.recipes.nemotron_vl import *
-from megatron.bridge.recipes.nemotron_vl.h100 import *
-from megatron.bridge.recipes.nemotronh import *
-from megatron.bridge.recipes.nemotronh.h100 import *
-from megatron.bridge.recipes.olmoe import *
-from megatron.bridge.recipes.olmoe.h100 import *
-from megatron.bridge.recipes.qwen import *
-from megatron.bridge.recipes.qwen.h100 import *
-from megatron.bridge.recipes.qwen2_audio import *
-from megatron.bridge.recipes.qwen2_audio.h100 import *
-from megatron.bridge.recipes.qwen_omni import *
-from megatron.bridge.recipes.qwen_omni.h100 import *
-from megatron.bridge.recipes.qwen_vl import *
-from megatron.bridge.recipes.qwen_vl.h100 import *
-from megatron.bridge.recipes.stepfun import *
-from megatron.bridge.recipes.stepfun.h100 import *
-from megatron.bridge.recipes.wan import *
-from megatron.bridge.recipes.wan.h100 import *
-from hcu_megatron.bridge.recipes.deepseek import *
-from hcu_megatron.bridge.recipes.glm import *
-from hcu_megatron.bridge.recipes.minimax import *
-from hcu_megatron.bridge.recipes.qwen35 import *
-from hcu_megatron.bridge.recipes.qwen35_vl import *
-from hcu_megatron.bridge.recipes.qwen38 import *
-from hcu_megatron.bridge.recipes.qwen38_vl import *
+_FAMILIES = ("deepseek", "glm", "minimax", "qwen35", "qwen35_vl", "qwen38", "qwen38_vl")
+
+
+def register_hcu_recipes() -> tuple[str, ...]:
+    """Expose the same HCU recipe exports to the existing library recipe lookup."""
+    target = importlib.import_module("megatron.bridge.recipes")
+    registered = []
+    for family in _FAMILIES:
+        module = importlib.import_module(f"hcu_megatron.bridge.recipes.{family}")
+        for name in getattr(module, "__all__", dir(module)):
+            value = getattr(module, name)
+            if (
+                name.startswith("_")
+                or not callable(value)
+                or not getattr(value, "__module__", "").startswith("hcu_megatron.")
+            ):
+                continue
+            previous = getattr(target, name, None)
+            if previous is not None and previous is not value:
+                raise RuntimeError(f"HCU recipe name conflicts with existing registration: {name}")
+            setattr(target, name, value)
+            registered.append(name)
+    logging.getLogger(__name__).info("Registered %d HCU recipes in process", len(registered))
+    return tuple(registered)

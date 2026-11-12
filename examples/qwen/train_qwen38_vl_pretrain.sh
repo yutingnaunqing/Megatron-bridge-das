@@ -115,6 +115,18 @@ TRAIN_CONFIG=(
 
 # ===================================== Parallel Config =====================================
 # TP4/PP2 also supports the four-language-layer 8gpu_smoke recipe.
+# Backend is read by the recipe; an explicit model.vision_rope_backend override wins.
+export VISION_ROPE_BACKEND=${VISION_ROPE_BACKEND:-reference}
+export VISION_METADATA_BACKEND=${VISION_METADATA_BACKEND:-reference}
+case ${VISION_METADATA_BACKEND} in
+    reference|prepared) ;;
+    *) echo "VISION_METADATA_BACKEND must be reference or prepared" >&2; exit 1 ;;
+esac
+case ${VISION_ROPE_BACKEND} in
+    reference|cached|flash) ;;
+    *) echo "VISION_ROPE_BACKEND must be reference, cached, or flash" >&2; exit 1 ;;
+esac
+
 TP=${TP:-4}
 PP=${PP:-2}
 CP=${CP:-1}
@@ -326,6 +338,8 @@ case "${MODE}" in
                 -x LOCAL_HF_PATH \
                 -x DATA_PATH \
                 -x TRAIN_ITERS \
+                -x VISION_ROPE_BACKEND \
+                -x VISION_METADATA_BACKEND \
                 -x GLOBAL_BATCH_SIZE \
                 -x MICRO_BATCH_SIZE \
                 -x OPTIMIZER_OFFLOAD_FRACTION \

@@ -2,8 +2,7 @@ _HCU_ENV_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 MEGATRON_PATH="$( dirname "${_HCU_ENV_DIR}" )"
 unset _HCU_ENV_DIR
 
-# register model on rocm platform
-cp "${MEGATRON_PATH}/hcu_megatron_bridge/src/hcu_megatron/bridge/recipes/__init__.py" "${MEGATRON_PATH}/3rdparty/Megatron-Bridge/src/megatron/bridge/recipes/"
+# HCU recipes are registered in-process by run_recipe.py; never overwrite upstream files.
 
 # These variables should not be modified.
 export PYTHONWARNINGS=ignore

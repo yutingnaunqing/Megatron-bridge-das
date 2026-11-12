@@ -20,6 +20,7 @@ import os
 from typing import Literal
 
 import torch
+from hcu_megatron.bridge.models.qwen38_vl.provider import from_upstream
 from megatron.core.transformer.enums import AttnBackend
 
 from megatron.bridge import AutoBridge
@@ -48,7 +49,7 @@ def _qwen38_vl_27b_pretrain_config(
     seq_length = int(os.environ.get("SEQ_LENGTH", "1024"))
 
     # Keep the top-level ConditionalGeneration config, including vision_config.
-    cfg.model = AutoBridge.from_hf_pretrained(hf_path).to_megatron_provider(load_weights=False)
+    cfg.model = from_upstream(AutoBridge.from_hf_pretrained(hf_path).to_megatron_provider(load_weights=False))
     if cfg.model.hf_text_config.model_type != "qwen3_5_text":
         raise ValueError("Qwen3.8-27B VL requires a dense qwen3_5_text configuration")
     cfg.model.seq_length = seq_length
@@ -73,6 +74,8 @@ def _qwen38_vl_27b_pretrain_config(
     cfg.model.bias_activation_fusion = False
     cfg.model.bias_dropout_fusion = False
     cfg.model.apply_rope_fusion = False
+    cfg.model.vision_rope_backend = os.environ.get("VISION_ROPE_BACKEND", "reference")
+    cfg.model.vision_metadata_backend = os.environ.get("VISION_METADATA_BACKEND", "reference")
     cfg.model.moe_router_fusion = False
     cfg.model.moe_permute_fusion = False
     cfg.model.attention_backend = AttnBackend.auto
