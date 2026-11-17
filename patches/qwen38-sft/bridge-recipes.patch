@@ -1,0 +1,34 @@
+diff --git a/src/megatron/bridge/recipes/__init__.py b/src/megatron/bridge/recipes/__init__.py
+index 7de54cff1..80c2cabd2 100644
+--- a/src/megatron/bridge/recipes/__init__.py
++++ b/src/megatron/bridge/recipes/__init__.py
+@@ -1,4 +1,5 @@
+ # Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
++# Copyright (c) 2026 Hygon Information Technology Co., Ltd.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+@@ -16,6 +17,12 @@
+ Megatron Bridge Recipe Configurations
+ 
+ This module exposes all recipe configurations from all model families.
++
++``env/env.sh`` copies this file over ``megatron/bridge/recipes/__init__.py``
++before every launch, which is how the HCU families below become visible to
++``find_library_recipe``: it resolves ``--recipe`` with ``getattr`` on the live
++``megatron.bridge.recipes`` module.  So this file must stay a superset of the
++upstream one -- the upstream star-imports first, then the HCU families.
+ """
+ 
+ from megatron.bridge.recipes.deepseek import *
+@@ -70,3 +77,10 @@ from megatron.bridge.recipes.stepfun import *
+ from megatron.bridge.recipes.stepfun.h100 import *
+ from megatron.bridge.recipes.wan import *
+ from megatron.bridge.recipes.wan.h100 import *
++from hcu_megatron.bridge.recipes.deepseek import *
++from hcu_megatron.bridge.recipes.glm import *
++from hcu_megatron.bridge.recipes.minimax import *
++from hcu_megatron.bridge.recipes.qwen35 import *
++from hcu_megatron.bridge.recipes.qwen35_vl import *
++from hcu_megatron.bridge.recipes.qwen38 import *
++from hcu_megatron.bridge.recipes.qwen38_vl import *

@@ -1,0 +1,14 @@
+diff --git a/src/megatron/bridge/training/gpt_step.py b/src/megatron/bridge/training/gpt_step.py
+index 5d1d42da5..84e1b89c0 100644
+--- a/src/megatron/bridge/training/gpt_step.py
++++ b/src/megatron/bridge/training/gpt_step.py
+@@ -435,6 +435,9 @@ def _forward_step_common(
+         "attention_mask": attention_mask,
+         "labels": labels,
+     }
++    if use_mtp:
++        # MTP rolls this mask with its targets; preserve SFT assistant-only supervision.
++        forward_args["loss_mask"] = loss_mask
+ 
+     # Add packed sequence support
+     if packed_seq_metadata is not None:

@@ -14,6 +14,10 @@
 
 """Qwen3.8-VL recipe exports."""
 
+from hcu_megatron.bridge.recipes.qwen38_vl.bw1000.qwen38_vl_sft import (
+    qwen38_vl_27b_sft_bw1000_bf16_config,
+)
+
 from hcu_megatron.bridge.recipes.qwen38_vl.bw1000.qwen38_vl import (
     qwen38_vl_27b_pretrain_8gpu_bw1000_bf16_config,
     qwen38_vl_27b_pretrain_8gpu_smoke_bw1000_bf16_config,
@@ -22,6 +26,7 @@ from hcu_megatron.bridge.recipes.qwen38_vl.bw1000.qwen38_vl import (
 )
 
 __all__ = [
+    "qwen38_vl_27b_sft_bw1000_bf16_config",
     "qwen38_vl_27b_pretrain_8gpu_bw1000_bf16_config",
     "qwen38_vl_27b_pretrain_8gpu_smoke_bw1000_bf16_config",
     "qwen38_vl_27b_pretrain_bw1000_bf16_config",

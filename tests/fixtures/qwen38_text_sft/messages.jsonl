@@ -1,0 +1,8 @@
+{"messages":[{"role":"user","content":"What is 2 + 2?"},{"role":"assistant","content":"2 + 2 = 4."}]}
+{"messages":[{"role":"user","content":"What is 3 times 7?"},{"role":"assistant","content":"3 times 7 is 21."}]}
+{"messages":[{"role":"user","content":"计算 12 除以 3。"},{"role":"assistant","content":"12 除以 3 等于 4。"}]}
+{"messages":[{"role":"user","content":"Explain gradient accumulation in one sentence."},{"role":"assistant","content":"Gradient accumulation sums gradients over several microbatches before performing an optimizer update."}]}
+{"messages":[{"role":"system","content":"Answer briefly."},{"role":"user","content":"What is the square of 5?"},{"role":"assistant","content":"25."},{"role":"user","content":"And the square of 6?"},{"role":"assistant","content":"36."}]}
+{"messages":[{"role":"user","content":"将英文 hello 翻译成中文。"},{"role":"assistant","content":"你好。"}]}
+{"messages":[{"role":"user","content":"List the first three positive even integers."},{"role":"assistant","content":"2, 4, 6."}]}
+{"messages":[{"role":"user","content":"A box contains 4 red balls and 6 blue balls. How many balls are in the box?"},{"role":"assistant","content":"There are 4 + 6 = 10 balls in the box."}]}
