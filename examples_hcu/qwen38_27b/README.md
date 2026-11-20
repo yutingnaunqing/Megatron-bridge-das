@@ -1,5 +1,7 @@
 # Qwen3.8-27B
 
+[纯文本与 Energon 全参 SFT 单/双节点指南](SFT_HANDOFF.md)
+
 ## Supported
 | Hardware | Recipe | Precision and optimizer |
 |----------|--------|-------------------------|

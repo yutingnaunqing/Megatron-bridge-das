@@ -1,0 +1,3 @@
+# Replace these names with two nodes reachable through the container SSH port.
+node-a
+node-b

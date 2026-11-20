@@ -1,20 +1,24 @@
-CURRENT_DIR="$( cd "$( dirname "$0" )" && pwd )"
-MEGATRON_PATH=$( dirname $( dirname ${CURRENT_DIR}))
+_HCU_ENV_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+MEGATRON_PATH="$( dirname "${_HCU_ENV_DIR}" )"
+unset _HCU_ENV_DIR
 
 # These variables should not be modified.
 export PYTHONWARNINGS=ignore
-export TRANSFORMERS_VERBOSITY=error
 export TOKENIZERS_PARALLELISM=false
 export TORCH_CPP_LOG_LEVEL=fatal
 export GLOG_minloglevel=3
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export HSA_FORCE_FINE_GRAIN_PCIE=1
 export OMP_NUM_THREADS=1
-export PYTHONPATH=${MEGATRON_PATH}/src:${MEGATRON_PATH}/3rdparty/Megatron-LM:${PYTHONPATH}
+export NCCL_ALGO=Ring
+export NCCL_MAX_NCHANNELS=32
+export NCCL_MIN_NCHANNELS=32
+export NCCL_NET_GDR_LEVEL=4
+export NCCL_NET_GDR_READ=1
+export RCCL_SDMA_COPY_ENABLE=0
+export PYTHONPATH="${MEGATRON_PATH}/src:${MEGATRON_PATH}/3rdparty/Megatron-LM${PYTHONPATH:+:${PYTHONPATH}}"
 export TRITON_HOME=/tmp
 export ROCSHMEM_IB_GID_INDEX=3
-export NCCL_SOCKET_IFNAME=eth0
-export GLOO_SOCKET_IFNAME=${NCCL_SOCKET_IFNAME}
 
 # These variables should be modified according to the environment of the machine you are using.
 # Auto-detect the IB HCA family and pick the matching profile. Force a specific
@@ -39,12 +43,27 @@ export IB_TYPE
 
 case "$IB_TYPE" in
   mlnx)
-    export NCCL_IB_HCA=mlx5
+    export NCCL_IB_HCA=${NCCL_IB_HCA:-mlx5_0:1,mlx5_2:1,mlx5_3:1,mlx5_4:1,mlx5_5:1,mlx5_6:1,mlx5_7:1,mlx5_8:1,mlx5_9:1}
     ;;
   shca)
-    export NCCL_IB_HCA=shca
+    export NCCL_IB_HCA=${NCCL_IB_HCA:-shca_0:1,shca_1:1,shca_2:1,shca_3:1}
+    export NCCL_PXN_DISABLE=0
     export NCCL_PLUGIN_P2P=ib
+    export NCCL_SOCKET_IFNAME=${NCCL_SOCKET_IFNAME:-eth0}
     export NCCL_NET_PLUGIN=shca
+    export RCCL_PXN_GPU_BALANCE=1
+    export SHCA_DEBUG_MASK=0
+    export SHCA_CMR_LOG_LEVEL=1
+    export UCX_IB_NUM_PATHS=1
+
+    export NCCL_NET_PLUGIN=/opt/rccl-rdma-sharp-plugins/lib/librccl-net-shca.so
+    export NCCL_TOPO_FILE=/usr/local/built-in-508-topo-input-tj-default.xml
+    # Per-machine tuning (e.g. 508-shca); enable as needed:
+    export RCCL_NET_PLANE="shca_0,shca_3|shca_1,shca_2"
+    export SHCA_SHUT_UP_FWB=0
+    export RCCL_P2P_XHCL_CHANNEL_NUM=30
+    # export NCCL_SHARED_NET_ENABLE=1
+    # export RCCL_SHARED_NET_ENABLE=0
     ;;
   *)
     echo "[env.sh] error: unknown IB_TYPE='$IB_TYPE' (expected mlnx or shca)" >&2
